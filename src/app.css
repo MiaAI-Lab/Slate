@@ -1,0 +1,260 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-editor: "JetBrains Mono", ui-monospace, monospace;
+  --font-preview: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* App chrome colors driven by .dark class toggled on <html>. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --bg-elev: #f7f7f8;
+  --bg-elev-2: #efefef;
+  --fg: #1a1a1a;
+  --fg-muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+  --danger: #dc2626;
+  /* Darker amber on light surfaces — #fbbf24 washes out on white. */
+  --dirty-dot: #d97706;
+  --scrollbar-thumb: #c5c7cb;
+  --scrollbar-thumb-hover: #a8abb1;
+  --scrollbar-track: transparent;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --bg-elev: #161922;
+  --bg-elev-2: #1f2330;
+  --fg: #e6e7eb;
+  --fg-muted: #9aa1ad;
+  --border: #2a2f3a;
+  --accent: #60a5fa;
+  --danger: #f87171;
+  --dirty-dot: #fbbf24;
+  --scrollbar-thumb: #2a2f3a;
+  --scrollbar-thumb-hover: #3a414f;
+  --scrollbar-track: transparent;
+}
+
+/* OLED: extends .dark by forcing pure-black surfaces. */
+.oled {
+  color-scheme: dark;
+  --bg: #000000;
+  --bg-elev: #000000;
+  --bg-elev-2: #050505;
+  --fg: #e6e7eb;
+  --fg-muted: #8a8f9b;
+  --border: #111418;
+  --accent: #60a5fa;
+  --danger: #f87171;
+  --dirty-dot: #fbbf24;
+  --scrollbar-thumb: #1a1d22;
+  --scrollbar-thumb-hover: #2a2f3a;
+  --scrollbar-track: transparent;
+}
+
+/* Force CodeMirror's oneDark background to pure black in OLED. */
+.oled .cm-editor,
+.oled .cm-editor .cm-scroller,
+.oled .cm-editor .cm-gutters {
+  background: #000000 !important;
+}
+/* Gutter (line number) text color for dark/OLED themes.
+   --gutter-fg is set by JS (applyLineNumberBrightness); falls back to #9c9c9c. */
+.dark .cm-editor .cm-gutters,
+.oled .cm-editor .cm-gutters {
+  color: var(--gutter-fg, #9c9c9c) !important;
+}
+/* Active line highlight — tinted with the user's accent color so it's
+   visible against every theme background without per-theme overrides. */
+.cm-editor .cm-activeLine {
+  background: color-mix(in srgb, var(--accent) 14%, transparent) !important;
+}
+.cm-editor .cm-activeLineGutter {
+  background: color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  color: var(--accent) !important;
+}
+
+/* OLED: surfaces are all #000, so the active tab loses its bg-based affordance.
+   Replace it with a 2px accent underline (inset shadow → no layout shift). */
+.oled [role="tab"][aria-selected="true"] {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* Themed scrollbars (Chromium / WebView2). */
+*::-webkit-scrollbar { width: 12px; height: 12px; }
+*::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 8px;
+  border: 3px solid var(--bg);
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* Firefox fallback (Tauri's macOS WebKit ignores -webkit, but Windows is WebView2). */
+* { scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); }
+
+/* Chrome (toolbar / tabs / menus) text — defaults to --fg; dark themes
+   override via JS by setting these on <html> inline. Must live on :root
+   only — declaring on html/body/#app shadows the inline override for
+   descendants and silently breaks the slider. Both vars use the same
+   brightness so menu items look uniform; visual hierarchy comes from
+   active-state background/underline, not from text dimness. */
+:root {
+  --menu-fg: var(--fg);
+  --menu-fg-muted: var(--fg);
+  /* Inactive tab text — always dimmer than --menu-fg so the active tab is
+     unambiguous. JS sets this in dark themes, derived from the slider. */
+  --tab-inactive-fg: var(--fg-muted);
+}
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow: hidden;
+}
+
+/* CodeMirror fills its host */
+.cm-editor { height: 100%; }
+.cm-scroller { overflow: auto; }
+.cm-editor .cm-gutters {
+  padding-left: 30px;
+  /* Prevent line numbers from being included in text selections (e.g. Ctrl+A). */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cm-editor .cm-content {
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: 30px;
+  margin-right: 30px;
+  /* Defensive: keep text selectable even if any ancestor has user-select:none
+     from a utility class like .select-none. */
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+/* Mouse-drag text selection — paint it with the app's accent color so it's
+   clearly visible in every theme (the default oneDark selection of #3E4451
+   is essentially invisible on OLED's pure-black background). */
+.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+.cm-editor .cm-selectionBackground,
+.cm-editor .cm-content ::selection {
+  background: color-mix(in srgb, var(--accent) 38%, transparent) !important;
+}
+
+/* Caret: 2px wide in the accent color (overrides oneDark / githubLight). */
+.cm-editor .cm-cursor,
+.cm-editor .cm-cursor-primary {
+  border-left-color: var(--accent) !important;
+  border-left-width: 2px !important;
+}
+
+/* Search highlight in editor (driven by searchPanel state). */
+.cm-search-match,
+.cm-search-current {
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+  border-radius: 2px;
+  color: white;
+}
+.cm-search-current {
+  outline: 1px solid var(--accent);
+}
+
+/* Hide scrollbar on tab bar overflow */
+.tabbar-scroll::-webkit-scrollbar { display: none; }
+.tabbar-scroll { scrollbar-width: none; }
+
+/* App-wide microtransitions for interactive controls. Keep durations short
+   (≈100ms) so the UI still feels responsive — long fades on buttons read as
+   sluggish. These run on hover, focus, active, and toggle state changes. */
+.ctx-item,
+.menu-item,
+.tb-btn,
+.seg-btn,
+.dlg-btn,
+.icon-btn,
+.tab-btn,
+.dlg-close,
+.toast-close,
+.swatch,
+.custom-color,
+.result-row {
+  transition: background-color 110ms ease,
+              color 110ms ease,
+              border-color 110ms ease,
+              opacity 110ms ease,
+              filter 110ms ease,
+              box-shadow 110ms ease;
+}
+
+/* Shared themed context menus. Both the TabBar's tab menu and the editor's
+   right-click menu render through these classes so a single source of truth
+   keeps them aligned with the active theme and accent color. */
+.ctx-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 200px;
+  padding: 4px 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--menu-fg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.ctx-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 12px;
+  font-size: 13px;
+  background: transparent;
+  color: var(--menu-fg);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ctx-item:hover:not(:disabled),
+.ctx-item:focus-visible:not(:disabled) {
+  background: var(--accent);
+  color: #ffffff;
+  outline: none;
+}
+.ctx-item:disabled { opacity: 0.4; cursor: default; }
+.ctx-item.danger { color: var(--danger); }
+.ctx-item.danger:hover:not(:disabled),
+.ctx-item.danger:focus-visible:not(:disabled) {
+  background: var(--danger);
+  color: #ffffff;
+}
+.ctx-item .ctx-kbd {
+  font-family: var(--font-editor);
+  font-size: 11px;
+  opacity: 0.65;
+}
+.ctx-item:hover:not(:disabled) .ctx-kbd,
+.ctx-item:focus-visible:not(:disabled) .ctx-kbd { opacity: 0.9; }
+.ctx-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}

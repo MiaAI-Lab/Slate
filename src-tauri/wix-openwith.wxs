@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Registers Slate under HKCU\Software\Classes\Applications\slate.exe so it
+  appears in Windows' "Open with" → "Choose another app" dialog for any file
+  type. Tauri's WiX template only registers ProgIDs for the extensions listed
+  in `bundle.fileAssociations` — this fragment adds the universal entry on
+  top of that.
+
+  Hooked into the main feature via `bundle.windows.wix.componentRefs` in
+  tauri.conf.json.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="SlateOpenWithRegistration" Guid="b9f4d3e7-8c2a-4f1d-9e6b-1a2b3c4d5e6f">
+        <RegistryKey Root="HKCU" Key="Software\Classes\Applications\slate.exe">
+          <RegistryValue Name="FriendlyAppName" Value="Slate" Type="string" KeyPath="yes" />
+        </RegistryKey>
+        <RegistryKey Root="HKCU" Key="Software\Classes\Applications\slate.exe\DefaultIcon">
+          <RegistryValue Value="[INSTALLDIR]slate.exe,0" Type="string" />
+        </RegistryKey>
+        <RegistryKey Root="HKCU" Key="Software\Classes\Applications\slate.exe\shell\open\command">
+          <RegistryValue Value="&quot;[INSTALLDIR]slate.exe&quot; &quot;%1&quot;" Type="string" />
+        </RegistryKey>
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

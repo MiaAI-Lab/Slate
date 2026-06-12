@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "pdf-export",
+  "description": "Permissions for the transient PDF export preview window",
+  "windows": ["pdf-export"],
+  "permissions": [
+    "core:window:allow-close"
+  ]
+}

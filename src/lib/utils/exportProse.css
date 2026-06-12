@@ -1,0 +1,249 @@
+/* Export prose styles — mirrors the preview (Tailwind Typography prose class).
+   Applied to <article> in the exported HTML for both print and PDF export. */
+
+/* Base typography */
+article {
+  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #1a1a1a;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Headings */
+article h1,
+article h2,
+article h3,
+article h4,
+article h5,
+article h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #111;
+}
+article h1 { font-size: 2.25em; }
+article h2 { font-size: 1.5em; }
+article h3 { font-size: 1.25em; }
+article h4 { font-size: 1.125em; }
+article h5 { font-size: 1em; }
+article h6 { font-size: 0.875em; color: #4b5563; }
+
+article h1:first-child,
+article h2:first-child,
+article h3:first-child {
+  margin-top: 0;
+}
+
+/* Paragraphs */
+article p {
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+}
+article p:first-child {
+  margin-top: 0;
+}
+
+/* Links */
+article a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+article a:hover {
+  color: #1d4ed8;
+}
+
+/* Bold & italic */
+article strong {
+  font-weight: 600;
+}
+article em {
+  font-style: italic;
+}
+
+/* Lists */
+article ul,
+article ol {
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+  padding-left: 1.625em;
+}
+article ul {
+  list-style-type: disc;
+}
+article ol {
+  list-style-type: decimal;
+}
+article li {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+article li > ul,
+article li > ol {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+/* Task lists */
+article li.task-list-item {
+  list-style: none;
+  margin-left: -1.5em;
+}
+article li.task-list-item input[type="checkbox"] {
+  margin-right: 0.5em;
+}
+
+/* Code */
+article code {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.875em;
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  background: #f3f4f6;
+  color: #dc2626;
+}
+
+/* Code blocks */
+article pre {
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  background: #f6f8fa;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+article pre code {
+  font-size: 0.875em;
+  line-height: 1.6;
+  padding: 0;
+  background: none;
+  color: inherit;
+  border-radius: 0;
+}
+
+/* Blockquotes */
+article blockquote {
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+  padding: 0.5em 1em;
+  border-left: 4px solid #d1d5db;
+  color: #4b5563;
+  font-style: italic;
+}
+article blockquote p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+/* Horizontal rule */
+article hr {
+  margin-top: 2em;
+  margin-bottom: 2em;
+  border: none;
+  border-top: 2px solid #e5e7eb;
+}
+
+/* Images */
+article img {
+  max-width: 100%;
+  height: auto;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+  border-radius: 6px;
+}
+
+/* Tables */
+article table {
+  display: table;
+  width: 100%;
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+}
+article thead {
+  border-bottom: 2px solid #d1d5db;
+}
+article th {
+  padding: 0.5em 0.75em;
+  font-weight: 600;
+  text-align: left;
+  vertical-align: bottom;
+}
+article td {
+  padding: 0.5em 0.75em;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: top;
+}
+article tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Dark theme */
+.dark article {
+  color: #e6e7eb;
+}
+.dark article h1,
+.dark article h2,
+.dark article h3,
+.dark article h4,
+.dark article h5 {
+  color: #f3f4f6;
+}
+.dark article h6 {
+  color: #9ca3af;
+}
+.dark article a {
+  color: #60a5fa;
+}
+.dark article a:hover {
+  color: #93bbfd;
+}
+.dark article code {
+  background: #1f2937;
+  color: #f87171;
+}
+.dark article pre {
+  background: #1f2937;
+  border-color: #374151;
+}
+.dark article pre code {
+  color: #e5e7eb;
+}
+.dark article blockquote {
+  border-left-color: #4b5563;
+  color: #9ca3af;
+}
+.dark article hr {
+  border-top-color: #374151;
+}
+.dark article thead {
+  border-bottom-color: #4b5563;
+}
+.dark article td {
+  border-bottom-color: #374151;
+}
+
+/* Print */
+@media print {
+  article {
+    max-width: none;
+    margin: 0;
+    padding: 1rem;
+  }
+  article pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  article a {
+    color: #1a1a1a;
+  }
+}

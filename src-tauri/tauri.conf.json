@@ -1,0 +1,68 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Slate",
+  "version": "1.0.21",
+  "identifier": "com.slate.app",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Slate",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 700,
+        "minHeight": 500,
+        "dragDropEnabled": true,
+        "backgroundColor": "#000000",
+        "maximized": true,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown", "mdx"],
+        "name": "Markdown",
+        "description": "Markdown document",
+        "role": "Editor"
+      },
+      {
+        "ext": ["txt", "log"],
+        "name": "Text",
+        "description": "Text document",
+        "role": "Editor"
+      }
+    ],
+    "windows": {
+      "wix": {
+        "language": "en-US",
+        "fragmentPaths": ["./wix-openwith.wxs"],
+        "componentRefs": ["SlateOpenWithRegistration"]
+      },
+      "nsis": {
+        "installerHooks": "./installer-hooks.nsh"
+      }
+    }
+  },
+  "plugins": {
+    "fs": { "requireLiteralLeadingDot": false }
+  }
+}
