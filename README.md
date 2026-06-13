@@ -6,6 +6,8 @@
   <br />
   No cloud. No telemetry. No accounts. Just your files.
 
+  <a href="https://ko-fi.com/Z8Z3SPLOD" rel="nofollow"><img height="36" style="height: 36px; max-width: 100%;" src="https://camo.githubusercontent.com/98e68a8a848c0aff42ae688c194b8826ec9b5a8480d9bfbd2caaee987ab3aa7f/68747470733a2f2f73746f726167652e6b6f2d66692e636f6d2f63646e2f6b6f6669362e706e673f763d36" alt="Buy Me a Coffee at ko-fi.com" data-canonical-src="https://storage.ko-fi.com/cdn/kofi6.png?v=6"></a>
+
   <br />
 
   <a href="https://github.com/MiaAI-Lab/Slate/releases"><img src="https://img.shields.io/github/v/release/MiaAI-Lab/Slate?style=flat-square&label=Release" alt="Release" /></a>
