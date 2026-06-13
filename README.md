@@ -2,7 +2,7 @@
 
   # 🖊️ Slate
 
-  **A featherlight, OLED-friendly Markdown editor for Windows.**
+  **A featherlight, OLED-friendly Text editor for Windows.**
   <br />
   No cloud. No telemetry. No accounts. Just your files.
 
