@@ -151,13 +151,17 @@ export { defaults as settingsDefaults }
 let settingsInitialized = false
 
 export function resolvedDark(theme: AppSettings['theme']): boolean {
-  if (theme === 'dark' || theme === 'oled') return true
+  if (theme === 'dark-grey' || theme === 'oled') return true
   if (theme === 'light') return false
   return window.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
 export function resolvedOled(theme: AppSettings['theme']): boolean {
   return theme === 'oled'
+}
+
+export function resolvedDarkGrey(theme: AppSettings['theme']): boolean {
+  return theme === 'dark-grey'
 }
 
 function applyHljsTheme(dark: boolean) {
@@ -173,8 +177,10 @@ function applyHljsTheme(dark: boolean) {
 export function applyTheme(theme: AppSettings['theme']) {
   const dark = resolvedDark(theme)
   const oled = resolvedOled(theme)
+  const darkGrey = resolvedDarkGrey(theme)
   document.documentElement.classList.toggle('dark', dark)
   document.documentElement.classList.toggle('oled', oled)
+  document.documentElement.classList.toggle('dark-grey', darkGrey)
   applyHljsTheme(dark)
 }
 
@@ -230,3 +236,4 @@ export async function initSettings() {
     })
   })
 }
+

@@ -189,7 +189,7 @@
         <div class="text-sm font-medium">Theme</div>
         <div class="seg" role="radiogroup" aria-label="Theme">
           <button type="button" class="seg-btn" class:on={settingsState.values.theme === 'light'} onclick={() => setTheme('light')}>Light</button>
-          <button type="button" class="seg-btn" class:on={settingsState.values.theme === 'dark'} onclick={() => setTheme('dark')}>Dark</button>
+          <button type="button" class="seg-btn" class:on={settingsState.values.theme === 'dark-grey'} onclick={() => setTheme('dark-grey')}>Dark Grey</button>
           <button type="button" class="seg-btn" class:on={settingsState.values.theme === 'oled'} onclick={() => setTheme('oled')}>OLED</button>
           <button type="button" class="seg-btn" class:on={settingsState.values.theme === 'system'} onclick={() => setTheme('system')}>System</button>
         </div>
@@ -578,6 +578,7 @@
   }
   .dlg-close:hover { background: rgba(0,0,0,0.06); color: var(--menu-fg); }
   :global(.dark) .dlg-close:hover { background: rgba(255,255,255,0.08); }
+  :global(.dark-grey) .dlg-close:hover { background: rgba(255,255,255,0.08); }
 
   .tab-btn {
     padding: 6px 12px;
@@ -612,6 +613,7 @@
   }
   .seg-btn:hover { background: rgba(0,0,0,0.06); color: var(--menu-fg); }
   :global(.dark) .seg-btn:hover { background: rgba(255,255,255,0.08); }
+  :global(.dark-grey) .seg-btn:hover { background: rgba(255,255,255,0.08); }
   .seg-btn.on {
     background: var(--accent);
     color: white;
@@ -642,6 +644,7 @@
   }
   .dlg-btn.ghost:hover:not(:disabled) { background: rgba(0, 0, 0, 0.06); }
   :global(.dark) .dlg-btn.ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
+  :global(.dark-grey) .dlg-btn.ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
   .dlg-btn.primary {
     background: var(--accent);
     color: white;
@@ -776,3 +779,6 @@
     margin-right: 2px;
   }
 </style>
+
+
+

@@ -28,7 +28,7 @@ export interface TypographySettings {
   lineNumberBrightness: number
 }
 
-export type Theme = 'light' | 'dark' | 'oled' | 'system'
+export type Theme = 'light' | 'dark-grey' | 'oled' | 'system'
 
 export interface PinnedTabsSettings {
   highlight: 'accent' | 'custom'
@@ -54,3 +54,4 @@ export interface AppSettings {
   tableAutoFormat: TableAutoFormatSettings
   showStatusBar: boolean
 }
+

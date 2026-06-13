@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *, .dark-grey, .dark-grey *));
 
 @theme {
   --font-editor: "JetBrains Mono", ui-monospace, monospace;
@@ -26,6 +26,24 @@
   --scrollbar-track: transparent;
 }
 
+/* Dark Grey: extends .dark like OLED but uses #121212 instead of pure black. */
+.dark-grey {
+  color-scheme: dark;
+  --bg: #121212;
+  --bg-elev: #121212;
+  --bg-elev-2: #121212;
+  --fg: #e6e7eb;
+  --fg-muted: #8a8f9b;
+  --border: #1e1e1e;
+  --accent: #60a5fa;
+  --danger: #f87171;
+  --dirty-dot: #fbbf24;
+  --scrollbar-thumb: #2a2f3a;
+  --scrollbar-thumb-hover: #3a414f;
+  --scrollbar-track: transparent;
+}
+
+
 .dark {
   color-scheme: dark;
   --bg: #0f1115;
@@ -41,6 +59,24 @@
   --scrollbar-thumb-hover: #3a414f;
   --scrollbar-track: transparent;
 }
+
+/* Dark Grey: extends .dark like OLED but uses #121212 instead of pure black. */
+.dark-grey {
+  color-scheme: dark;
+  --bg: #121212;
+  --bg-elev: #121212;
+  --bg-elev-2: #121212;
+  --fg: #e6e7eb;
+  --fg-muted: #8a8f9b;
+  --border: #1e1e1e;
+  --accent: #60a5fa;
+  --danger: #f87171;
+  --dirty-dot: #fbbf24;
+  --scrollbar-thumb: #2a2f3a;
+  --scrollbar-thumb-hover: #3a414f;
+  --scrollbar-track: transparent;
+}
+
 
 /* OLED: extends .dark by forcing pure-black surfaces. */
 .oled {
@@ -59,16 +95,41 @@
   --scrollbar-track: transparent;
 }
 
+/* Dark Grey: extends .dark like OLED but uses #121212 instead of pure black. */
+.dark-grey {
+  color-scheme: dark;
+  --bg: #121212;
+  --bg-elev: #121212;
+  --bg-elev-2: #121212;
+  --fg: #e6e7eb;
+  --fg-muted: #8a8f9b;
+  --border: #1e1e1e;
+  --accent: #60a5fa;
+  --danger: #f87171;
+  --dirty-dot: #fbbf24;
+  --scrollbar-thumb: #2a2f3a;
+  --scrollbar-thumb-hover: #3a414f;
+  --scrollbar-track: transparent;
+}
+
+
 /* Force CodeMirror's oneDark background to pure black in OLED. */
 .oled .cm-editor,
 .oled .cm-editor .cm-scroller,
 .oled .cm-editor .cm-gutters {
   background: #000000 !important;
 }
+/* Force CodeMirror's oneDark background to #121212 in Dark Grey. */
+.dark-grey .cm-editor,
+.dark-grey .cm-editor .cm-scroller,
+.dark-grey .cm-editor .cm-gutters {
+  background: #121212 !important;
+}
 /* Gutter (line number) text color for dark/OLED themes.
    --gutter-fg is set by JS (applyLineNumberBrightness); falls back to #9c9c9c. */
 .dark .cm-editor .cm-gutters,
-.oled .cm-editor .cm-gutters {
+.oled .cm-editor .cm-gutters,
+.dark-grey .cm-editor .cm-gutters {
   color: var(--gutter-fg, #9c9c9c) !important;
 }
 /* Active line highlight — tinted with the user's accent color so it's
@@ -84,6 +145,10 @@
 /* OLED: surfaces are all #000, so the active tab loses its bg-based affordance.
    Replace it with a 2px accent underline (inset shadow → no layout shift). */
 .oled [role="tab"][aria-selected="true"] {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+/* Dark Grey: also use accent underline for active tab. */
+.dark-grey [role="tab"][aria-selected="true"] {
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
@@ -258,3 +323,5 @@ body {
   background: var(--border);
   margin: 4px 0;
 }
+
+
