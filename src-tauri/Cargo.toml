@@ -1,6 +1,6 @@
 [package]
 name = "slate"
-version = "1.0.21"
+version = "1.0.22"
 edition = "2021"
 description = "A fast, local-first Windows markdown editor built with Tauri 2, Svelte 5, and CodeMirror 6"
 authors = ["MD Editor"]
