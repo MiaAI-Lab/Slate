@@ -60,3 +60,4 @@ src-tauri/target/.rustc_info.json
 # pnpm-lock.yaml is tracked by design
 # Local config (API keys)
 .codex-local
+.github-token
