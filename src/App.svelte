@@ -60,6 +60,9 @@
 
   // Poll file mtimes as a fallback for file-watch events that may be missed
   // on Windows (ReadDirectoryChangesW buffer overflow, rapid writes, etc.).
+  // Keyed by absolute path so two tabs pointing at the same file share one
+  // cache entry — avoids redundant syscalls and prevents a stale tab entry
+  // from spuriously re-triggering.
   const mtimeCache = new Map<string, number>()
   $effect(() => {
     const id = window.setInterval(async () => {
@@ -67,12 +70,19 @@
         if (!tab.path || tab.externallyChanged) continue
         try {
           const mtime = await invoke<number>('file_mtime', { path: tab.path })
-          const prev = mtimeCache.get(tab.id)
-          if (prev !== undefined && mtime > prev) {
+          const cacheKey = tab.path
+          const prev = mtimeCache.get(cacheKey)
+          // Require at least a 2-second mtime jump to flag a change. On remote
+          // network / SMB drives, timestamp precision can be coarse (2-second
+          // FAT-resolution on some NAS devices) or fluctuate slightly due to
+          // NTP skew between client and server. A 1-second threshold avoids
+          // false positives from timestamp jitter while still catching real
+          // external edits within the 4-second poll window.
+          if (prev !== undefined && mtime > prev + 1) {
             tabsState.setExternallyChanged(tab.id, true)
             toast.fileChanged(tab.id, tab.title)
           }
-          mtimeCache.set(tab.id, mtime)
+          mtimeCache.set(cacheKey, mtime)
         } catch {
           // File may have been deleted or become inaccessible
         }
@@ -180,7 +190,6 @@
       // onKeydown handler run — otherwise Ctrl+F inside the find input would
       // be re-captured here and immediately close the panel the user just
       // opened.
-      const inSearchPanel = target?.closest?.('.search-panel') != null
 
       // Use e.code (physical key position) rather than e.key (produced
       // character) so shortcuts work on non-Latin layouts (Hebrew, Cyrillic,
@@ -204,19 +213,25 @@
         e.preventDefault()
         if (e.shiftKey) tabsState.cyclePrev(); else tabsState.cycleNext()
       } else if (code === 'KeyF') {
-        // Ctrl+F (and Ctrl+Shift+F) open our slide-in Search panel, NOT
-        // CodeMirror's built-in mini search. Capture phase makes us win.
-        // Skip when focus is inside the panel — otherwise we'd swallow the
-        // user's own Ctrl+F and toggle the panel closed.
-        if (inSearchPanel) return
+        // Ctrl+F (and Ctrl+Shift+F) open / focus our slide-in Search panel,
+        // NOT CodeMirror's built-in mini search. Capture phase makes us win.
         e.preventDefault()
+        if (searchPanel.open) {
+          // Already open — focus the find input instead of toggling closed.
+          // The user pressed Ctrl+F intending to search, not to dismiss.
+          searchPanel.focusRequest++
+          return
+        }
         const sel = window.getSelection()
         const prefill = sel && !sel.isCollapsed ? sel.toString() : ''
-        searchPanel.toggle(prefill)
+        searchPanel.show(prefill)
       } else if (code === 'KeyH' && !e.shiftKey) {
-        // Ctrl+H = open search panel (search-and-replace lives there too).
-        if (inSearchPanel) return
+        // Ctrl+H = open/focus search panel (search-and-replace lives there too).
         e.preventDefault()
+        if (searchPanel.open) {
+          searchPanel.focusRequest++
+          return
+        }
         const sel = window.getSelection()
         const prefill = sel && !sel.isCollapsed ? sel.toString() : ''
         searchPanel.show(prefill)
@@ -306,35 +321,45 @@
       unlistenFn?.()
       unlistenClose?.()
     }
-  })
-</script>
+	  })
+	
+	  // --- BEGIN scroll-position diagnostic ---
+	  let _prevId: string | null = null
+	  $effect(() => {
+	    const id = tabsState.activeTab?.id ?? null
+	    if (id !== _prevId) {
+	      console.log('[App] activeTab:', _prevId, '->', id, 'tabs.length:', tabsState.tabs.length, 'activeId:', tabsState.activeId)
+	      _prevId = id
+	    }
+	  })
+	  // --- END scroll-position diagnostic ---
+	</script>
 
 <div class="flex flex-col h-screen w-screen">
   {#if !windowState.fullscreen}
     <Toolbar />
     <TabBar />
   {/if}
-  <div class="flex-1 overflow-hidden min-h-0 relative">
-    {#if tabsState.activeTab}
-      <div
-        class="grid h-full w-full"
-        class:grid-cols-2={mode === 'split'}
-        class:grid-cols-1={mode !== 'split'}
-      >
-        <div class="h-full overflow-hidden min-h-0" class:hidden={mode === 'preview'}>
-          <Editor />
-        </div>
-        <div
-          class="h-full overflow-hidden min-h-0"
-          class:hidden={mode === 'editor'}
-          style="border-left: 1px solid var(--border);"
-        >
-          <Preview />
-        </div>
-      </div>
-    {/if}
-    <SearchPanel />
-  </div>
+	  <div class="flex-1 overflow-hidden min-h-0 relative">
+	    <div
+	      class="grid h-full w-full"
+	      class:hidden={!tabsState.activeTab}
+	      class:grid-cols-2={mode === 'split'}
+	      class:grid-cols-1={mode !== 'split'}
+	    >
+	      <div class="h-full overflow-hidden min-h-0" class:hidden={mode === 'preview'}>
+	        <Editor />
+	      </div>
+	      <div
+	        class="h-full overflow-hidden min-h-0"
+	        class:hidden={mode === 'editor'}
+	        style="border-left: 1px solid var(--border);"
+	      >
+	        <Preview />
+	      </div>
+	    </div>
+	    <SearchPanel />
+	  </div>
   {#if settingsState.values.showStatusBar}
     <StatusBar />
   {/if}

@@ -24,8 +24,8 @@
 
   <br />
 
-  <a href="https://github.com/MiaAI-Lab/Slate/releases/download/v1.0.21/Slate_1.0.21_x64_en-US.msi">📥 Download MSI</a> ·
-  <a href="https://github.com/MiaAI-Lab/Slate/releases/download/v1.0.21/Slate_1.0.21_x64-setup.exe">📥 Download Setup EXE</a> ·
+  <a href="https://github.com/MiaAI-Lab/Slate/releases/download/v1.0.22/Slate_1.0.22_x64_en-US.msi">📥 Download MSI</a> ·
+  <a href="https://github.com/MiaAI-Lab/Slate/releases/download/v1.0.22/Slate_1.0.22_x64-setup.exe">📥 Download Setup EXE</a> ·
   <a href="#features">✨ Features</a> ·
   <a href="https://github.com/MiaAI-Lab/Slate/issues">🐛 Report Bug</a>
 
@@ -75,8 +75,8 @@ There are plenty of Markdown editors. Slate exists because the small things matt
 
 Download the latest installer from the [Releases page](https://github.com/MiaAI-Lab/Slate/releases):
 
-[![Download MSI](https://img.shields.io/badge/Download-MSI-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/MiaAI-Lab/Slate/releases/download/v1.0.21/Slate_1.0.21_x64_en-US.msi)
-[![Download Setup EXE](https://img.shields.io/badge/Download-Setup_EXE-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/MiaAI-Lab/Slate/releases/download/v1.0.21/Slate_1.0.21_x64-setup.exe)
+[![Download MSI](https://img.shields.io/badge/Download-MSI-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/MiaAI-Lab/Slate/releases/download/v1.0.22/Slate_1.0.22_x64_en-US.msi)
+[![Download Setup EXE](https://img.shields.io/badge/Download-Setup_EXE-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/MiaAI-Lab/Slate/releases/download/v1.0.22/Slate_1.0.22_x64-setup.exe)
 
 - **MSI** — Windows Installer package. Supports silent/unattended installation via msiexec. Recommended for enterprise deployment.
 - **Setup EXE** — NSIS-based installer with a graphical setup wizard. Recommended for most users.

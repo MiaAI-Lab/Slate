@@ -18,6 +18,9 @@ class SearchPanelState {
   currentIdx = $state(-1)
   /** Pre-filled query from an external caller (e.g. selected text). */
   _prefill = $state('')
+  /** Monotonic counter bumped each time something external (e.g. Ctrl+F
+   *  while the panel is already open) wants the find input focused. */
+  focusRequest = $state(0)
 
   show(prefill?: string) {
     this.query = prefill ?? this.lastQuery

@@ -9,6 +9,7 @@ use tauri::Emitter;
 pub struct WatchEntry {
     pub content: String,
     pub debounce_until: Instant,
+    pub watch_started_at: Instant,
 }
 
 enum WatcherCmd {
@@ -85,6 +86,7 @@ impl FileWatchers {
         self.inner.entries.insert(path.to_string(), WatchEntry {
             content: content.to_string(),
             debounce_until: Instant::now(),
+            watch_started_at: Instant::now(),
         });
     }
 
@@ -125,47 +127,61 @@ fn handle_event(event: &notify::Event, state: &Arc<SharedState>) {
         }
     }
 
-    for p in paths {
-        let state = state.clone();
-        std::thread::spawn(move || {
-            // Wait until debounce window passes or entry is removed.
-            loop {
-                match state.entries.get(&p) {
-                    Some(entry) => {
-                        if entry.debounce_until <= Instant::now() {
-                            break;
-                        }
-                        std::thread::sleep(Duration::from_millis(50));
-                    }
-                    None => return,
-                }
-            }
+	    for p in paths {
+	        let state = state.clone();
+	        std::thread::spawn(move || {
+	            // Wait until debounce window passes or entry is removed.
+	            loop {
+	                match state.entries.get(&p) {
+	                    Some(entry) => {
+	                        if entry.debounce_until <= Instant::now() {
+	                            break;
+	                        }
+	                        std::thread::sleep(Duration::from_millis(50));
+	                    }
+	                    None => return,
+	                }
+	            }
 
-            let content = match std::fs::read_to_string(&p) {
-                Ok(c) => c,
-                Err(_) => {
-                    emit_event(&state, &p);
-                    state.entries.remove(&p);
-                    return;
-                }
-            };
+	            // Startup grace period (2s): ignore events that arrive right after
+	            // we start watching. On Windows, ReadDirectoryChangesW can fire
+	            // spurious Modify events on network/SMB shares when a file is
+	            // merely opened for reading — without this guard, those events
+	            // race with the initial content store and produce false positives.
+	            if let Some(entry) = state.entries.get(&p) {
+	                if entry.watch_started_at.elapsed() < Duration::from_secs(2) {
+	                    return;
+	                }
+	            }
 
-            let changed = match state.entries.get(&p) {
-                Some(entry) => content != entry.content,
-                None => return,
-            };
+	            let content = match std::fs::read_to_string(&p) {
+	                Ok(c) => c,
+	                Err(_) => {
+	                    // Read failure does NOT mean the file was externally
+	                    // modified — on network drives this can happen due to
+	                    // transient SMB latency, remote antivirus scanning, or
+	                    // a temporary lock. Silently skip so the next Modify
+	                    // event retries.
+	                    return;
+	                }
+	            };
 
-            if !changed {
-                return;
-            }
+	            let changed = match state.entries.get(&p) {
+	                Some(entry) => content != entry.content,
+	                None => return,
+	            };
 
-            if let Some(mut entry) = state.entries.get_mut(&p) {
-                entry.content = content;
-            }
+	            if !changed {
+	                return;
+	            }
 
-            emit_event(&state, &p);
-        });
-    }
+	            if let Some(mut entry) = state.entries.get_mut(&p) {
+	                entry.content = content;
+	            }
+
+	            emit_event(&state, &p);
+	        });
+	    }
 }
 
 fn emit_event(state: &Arc<SharedState>, path: &str) {

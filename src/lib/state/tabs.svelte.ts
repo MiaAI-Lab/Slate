@@ -105,6 +105,11 @@ class TabsState {
     if (t) t.externallyChanged = changed
   }
 
+  setScrollPos(id: string, scrollTop: number) {
+    const t = this.tabs.find(t => t.id === id)
+    if (t) t.scrollPos = scrollTop
+  }
+
   getTabByPath(path: string): Tab | undefined {
     return this.tabs.find(t => t.path === path)
   }

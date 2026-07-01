@@ -19,10 +19,10 @@
   import { settingsState, resolvedDark } from '$lib/state/settings.svelte'
   import { searchPanel } from '$lib/state/searchPanel.svelte'
 
-  let host = $state<HTMLDivElement | undefined>()
-  let viewReady = $state(false)
-  let view: EditorView | null = null
-  let mountedTabId: string | null = null
+		  let host: HTMLDivElement | undefined
+		  let viewReady = $state(false)
+		  let view: EditorView | null = null
+		  let mountedTabId: string | null = null
 
   function currentOpts(doc: string, path: string | null): EditorOpts {
     const t = settingsState.values.typography
@@ -42,7 +42,9 @@
 
   // Mount EditorView once when host is attached. Reading reactive state here
   // is wrapped in `untrack` so that ordinary edits (which mutate tab.content)
-  // don't re-run this effect and destroy the view.
+  // don't re-run this effect and destroy the view.  The only tracked dependency
+  // is `host` — everything else is untracked so that tab switches (handled by
+  // the tab-switch effect below) never destroy and recreate the view.
   $effect(() => {
     if (!host) return
     untrack(() => {
@@ -50,24 +52,60 @@
       const path = tab?.path ?? null
       view = createEditor(host!, currentOpts(tab?.content ?? '', path))
       mountedTabId = tab?.id ?? null
+      console.log('[tab] CREATION effect set mountedTabId =', mountedTabId)
       // Only mark the language as configured when the sync seed was the final
       // answer (markdown / plaintext / untitled). For paths that need the
       // async loader (.bat, .py, .rs, …), leave configuredLangPath undefined
       // so the language effect fires and replaces the placeholder [].
       if (isLanguageSyncResolved(path)) configuredLangPath = path
       if (mountedTabId) stateByTab.set(mountedTabId, view.state)
+
+      viewReady = true
+      consumePendingScroll()
+      consumePendingFocus()
+      // Restore scroll for the tab that just mounted.
+      if (mountedTabId) {
+        const savedLine = scrollLineCache.get(mountedTabId) ?? 0
+        console.log('[scroll] RESTORE-after-create for', mountedTabId, 'savedLine=', savedLine)
+        if (savedLine > 0) {
+          requestAnimationFrame(() => {
+            if (!view) return
+            const clamped = Math.min(savedLine, view.state.doc.lines)
+            if (clamped > 0) {
+              const line = view.state.doc.line(clamped)
+              view.dispatch({
+                effects: EditorView.scrollIntoView(line.from, { y: 'start' }),
+              })
+              console.log('[scroll] RESTORE-after-create applied line=', clamped)
+            }
+          })
+        }
+      }
     })
-    viewReady = true
-    consumePendingScroll()
-    consumePendingFocus()
     return () => {
+      console.log('[tab] CLEANUP — view destroyed')
       viewReady = false
-      if (view && mountedTabId) stateByTab.set(mountedTabId, view.state)
+      if (view && mountedTabId) {
+        // Save scroll position before the view is destroyed so the next
+        // Editor instance can restore it for this tab.
+        const { top } = view.scrollDOM.getBoundingClientRect()
+        const pos = view.posAtCoords({ x: 0, y: top + 1 })
+        if (pos != null) {
+          const line = view.state.doc.lineAt(pos).number
+          scrollLineCache.set(mountedTabId, line)
+          console.log('[scroll] SAVED in cleanup', mountedTabId, 'line=', line)
+        }
+        stateByTab.set(mountedTabId, view.state)
+      }
       view?.destroy()
       view = null
       mountedTabId = null
     }
   })
+
+  // Per-tab scroll position cache (top-visible line number, 1-based).
+  // Stored as a plain Map so it's not entangled with Svelte $state timing.
+  const scrollLineCache = new Map<string, number>()
 
   // React to active tab change. Gated on viewReady ($state) so this effect
   // tracks its deps unconditionally and re-runs after the view is created.
@@ -79,23 +117,106 @@
     const tabContent = tab.content
     const _pending = tab.pendingScrollLine
     const _pendingFocus = tab.pendingFocus
+    console.log('[tab] check tabId:', tabId, 'mounted:', mountedTabId, 'equal:', tabId === mountedTabId)
     if (!viewReady || !view) return
     if (tabId === mountedTabId) {
+      console.log('[tab] SAME-TAB path — save/restore SKIPPED')
       syncFromStoreIfDiverged(tab)
       consumePendingScroll()
       consumePendingFocus()
       return
     }
-    if (mountedTabId) stateByTab.set(mountedTabId, view.state)
-    const existing = stateByTab.get(tabId)
-    if (existing && existing.doc.toString() === tabContent) {
-      view.setState(existing)
-    } else {
-      view.setState(buildState(currentOpts(tabContent, tab.path)))
+
+    console.log('[tab] DIFFERENT tab — save/restore WILL RUN')
+
+    console.log('[tab] saving state for', mountedTabId, 'loading', tabId)
+    // ----- Switching away from the old tab -----
+    if (mountedTabId) {
+      // Save the old tab's top-visible line number before the document
+      // changes. We'll restore this when the user comes back.
+      const { top } = view.scrollDOM.getBoundingClientRect()
+      const pos = view.posAtCoords({ x: 0, y: top + 1 })
+      if (pos != null) {
+        const line = view.state.doc.lineAt(pos).number
+        scrollLineCache.set(mountedTabId, line)
+        console.log('[scroll] SAVED', mountedTabId, 'topLine=', line, 'scrollTop=', view.scrollDOM.scrollTop)
+      }
+      stateByTab.set(mountedTabId, view.state)
     }
+
+    // ----- Switch to the new tab -----
+    // NEVER use view.setState — it always resets scroll. Instead, always
+    // dispatch content changes into the existing view.  CM's dispatch
+    // preserves scrollTop naturally; no amount of post-setState scrollTop
+    // poking survives the view rebuild that setState triggers.
+    const cur = view.state.doc.toString()
+    if (cur !== tabContent) {
+      view.dispatch({
+        changes: { from: 0, to: cur.length, insert: tabContent },
+        annotations: SyncFromStore.of(true),
+      })
+    }
+
+    const existing = stateByTab.get(tabId)
+
     mountedTabId = tabId
+    const hadPendingScroll = tab.pendingScrollLine != null
     consumePendingScroll()
     consumePendingFocus()
+
+    // ----- Restore scroll position (top-visible line) -----
+    if (!hadPendingScroll) {
+      const savedLine = scrollLineCache.get(tabId) ?? 0
+      console.log('[scroll] RESTORE target=', tabId, 'savedLine=', savedLine, 'lines=', view.state.doc.lines)
+      if (savedLine > 0) {
+        const clamped = Math.min(savedLine, view.state.doc.lines)
+        if (clamped > 0) {
+          const line = view.state.doc.line(clamped)
+
+          // Restore selection AND scrollIntoView in ONE dispatch.
+          const sel = existing?.selection.main
+          view.dispatch({
+            ...(sel ? { selection: { anchor: sel.anchor, head: sel.head } } : {}),
+            effects: EditorView.scrollIntoView(line.from, { y: 'start' }),
+            annotations: SyncFromStore.of(true),
+          })
+
+          // Verify — log what actually happened
+          console.log('[scroll] AFTER dispatch scrollTop=', view.scrollDOM.scrollTop)
+
+          // Brute-force backup: try scrollIntoView again at multiple event-loop
+          // depths to catch any deferred CM scroll logic that might override.
+          const retry = (depth = 0) => {
+            if (!view || depth > 5) return
+            const saved = scrollLineCache.get(tabId) ?? 0
+            if (saved <= 0) return
+            const l = view.state.doc.line(Math.min(saved, view.state.doc.lines))
+            const coords = view.coordsAtPos(l.from)
+            if (!coords) return
+            const rect = view.scrollDOM.getBoundingClientRect()
+            const diff = coords.top - rect.top
+            console.log('[scroll] retry depth=', depth, 'diff=', diff, 'scrollTop=', view.scrollDOM.scrollTop)
+            if (Math.abs(diff) > 3) {
+              view.scrollDOM.scrollBy(0, diff)
+              requestAnimationFrame(() => retry(depth + 1))
+            }
+          }
+          requestAnimationFrame(() => retry(0))
+          setTimeout(() => retry(0), 0)
+          setTimeout(() => retry(0), 50)
+          setTimeout(() => retry(0), 100)
+        }
+      }
+    } else if (existing) {
+      // No saved scroll position, but restore selection so cursor isn't lost.
+      const sel = existing.selection.main
+      view.dispatch({
+        selection: { anchor: sel.anchor, head: sel.head },
+      })
+    }
+
+    requestAnimationFrame(() => view?.requestMeasure())
+
     requestAnimationFrame(() => view?.requestMeasure())
   })
 

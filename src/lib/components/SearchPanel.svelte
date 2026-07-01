@@ -124,6 +124,14 @@
     queueMicrotask(() => inputEl?.focus())
   })
 
+  // Focus the find input whenever something external requests it
+  // (e.g. Ctrl+F while the panel is already open).
+  $effect(() => {
+    const _ = searchPanel.focusRequest
+    if (!searchPanel.open) return
+    queueMicrotask(() => inputEl?.select())
+  })
+
   // Compute matches in the active tab whenever query/caseSensitive/active-tab/content changes.
   // Published on searchPanel.matches/currentIdx so the Editor highlights live.
   $effect(() => {
