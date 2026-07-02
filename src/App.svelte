@@ -28,6 +28,8 @@
   import { onMount } from 'svelte'
   import { invoke } from '@tauri-apps/api/core'
   import { listen } from '@tauri-apps/api/event'
+  import { debugLog } from '$lib/utils/debug'
+  import { mtimeGet, mtimeSet, mtimeClear } from '$lib/state/mtimeCache.svelte'
 
   const mode = $derived(tabsState.activeTab?.viewMode ?? 'editor')
 
@@ -52,6 +54,7 @@
     const unlisten = listen<{ path: string }>('file-changed-externally', (event) => {
       const tab = tabsState.getTabByPath(event.payload.path)
       if (!tab) return
+      if (tab.isNetworkPath) return
       tabsState.setExternallyChanged(tab.id, true)
       toast.fileChanged(tab.id, tab.title)
     })
@@ -63,32 +66,39 @@
   // Keyed by absolute path so two tabs pointing at the same file share one
   // cache entry — avoids redundant syscalls and prevents a stale tab entry
   // from spuriously re-triggering.
-  const mtimeCache = new Map<string, number>()
+  // When mtime changes, content is read and compared — on network/SMB drives
+  // mtime can shift without content changing (metadata refresh, antivirus scan,
+  // NTP skew, etc.), so content comparison is the only reliable check.
   $effect(() => {
     const id = window.setInterval(async () => {
       for (const tab of tabsState.tabs) {
         if (!tab.path || tab.externallyChanged) continue
+        if (tab.isNetworkPath) continue
         try {
           const mtime = await invoke<number>('file_mtime', { path: tab.path })
           const cacheKey = tab.path
-          const prev = mtimeCache.get(cacheKey)
-          // Require at least a 2-second mtime jump to flag a change. On remote
-          // network / SMB drives, timestamp precision can be coarse (2-second
-          // FAT-resolution on some NAS devices) or fluctuate slightly due to
-          // NTP skew between client and server. A 1-second threshold avoids
-          // false positives from timestamp jitter while still catching real
-          // external edits within the 4-second poll window.
+          const prev = mtimeGet(cacheKey)
+          // Require at least a 2-second mtime jump before even reading content.
+          // On remote network / SMB drives, timestamp precision can be coarse
+          // (2-second FAT-resolution on some NAS devices) or fluctuate slightly
+          // due to NTP skew between client and server. This guards against
+          // unnecessary file reads on every poll cycle.
           if (prev !== undefined && mtime > prev + 1) {
-            tabsState.setExternallyChanged(tab.id, true)
-            toast.fileChanged(tab.id, tab.title)
+            // Verify content actually changed — mtime alone is unreliable on
+            // network drives (metadata refresh, antivirus, indexing, etc.).
+            const current = await invoke<string>('read_file', { path: tab.path })
+            if (current !== tab.content) {
+              tabsState.setExternallyChanged(tab.id, true)
+              toast.fileChanged(tab.id, tab.title)
+            }
           }
-          mtimeCache.set(cacheKey, mtime)
+          mtimeSet(cacheKey, mtime)
         } catch {
           // File may have been deleted or become inaccessible
         }
       }
     }, 4000)
-    return () => { clearInterval(id); mtimeCache.clear() }
+    return () => { clearInterval(id); mtimeClear() }
   })
 
   // Apply theme settings (initSettings already applied once; reapply on user changes).
@@ -278,8 +288,14 @@
         unlistenFn = await getCurrentWebview().onDragDropEvent(async (event) => {
           if (event.payload.type !== 'drop') return
           for (const path of event.payload.paths) {
-            // Skip obvious binary extensions; let read_file decide for the rest.
-            if (/\.(exe|dll|so|dylib|zip|tar|gz|7z|rar|pdf|png|jpe?g|gif|bmp|ico|mp3|mp4|avi|mov|mkv|wav|flac|ttf|otf|woff2?)$/i.test(path)) continue
+            // Handle image drops — save to assets/ and insert markdown.
+            // Editor.svelte listens for this custom event.
+            if (/\.(png|jpe?g|gif|webp|svg)$/i.test(path)) {
+              window.dispatchEvent(new CustomEvent('slate-drop-image', { detail: { path } }))
+              continue
+            }
+            // Skip other obvious binary extensions; let read_file decide for the rest.
+            if (/\.(exe|dll|so|dylib|zip|tar|gz|7z|rar|pdf|bmp|ico|mp3|mp4|avi|mov|mkv|wav|flac|ttf|otf|woff2?)$/i.test(path)) continue
             try { await openPathInTab(path) } catch (err) { console.error(err) }
           }
         })
@@ -323,16 +339,16 @@
     }
 	  })
 	
-	  // --- BEGIN scroll-position diagnostic ---
-	  let _prevId: string | null = null
-	  $effect(() => {
-	    const id = tabsState.activeTab?.id ?? null
-	    if (id !== _prevId) {
-	      console.log('[App] activeTab:', _prevId, '->', id, 'tabs.length:', tabsState.tabs.length, 'activeId:', tabsState.activeId)
-	      _prevId = id
-	    }
-	  })
-	  // --- END scroll-position diagnostic ---
+		  // --- BEGIN scroll-position diagnostic ---
+		  let _prevId: string | null = null
+		  $effect(() => {
+		    const id = tabsState.activeTab?.id ?? null
+		    if (id !== _prevId) {
+		      debugLog('[App] activeTab:', _prevId, '->', id, 'tabs.length:', tabsState.tabs.length, 'activeId:', tabsState.activeId)
+		      _prevId = id
+		    }
+		  })
+		  // --- END scroll-position diagnostic ---
 	</script>
 
 <div class="flex flex-col h-screen w-screen">

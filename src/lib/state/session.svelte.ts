@@ -41,7 +41,7 @@ let sessionInitialized = false
 
 async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   try { return await invoke<T>(cmd, args) }
-  catch { return null }
+  catch (e) { console.warn('[session] safeInvoke failed:', cmd, e); return null }
 }
 
 async function readFromDisk(path: string): Promise<{ content: string; title: string } | null> {

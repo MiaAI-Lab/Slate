@@ -2,6 +2,7 @@
   import { untrack } from 'svelte'
   import { fade } from 'svelte/transition'
   import { EditorView } from '@codemirror/view'
+  import { debugLog } from '$lib/utils/debug'
   import {
     createEditor,
     buildState,
@@ -52,7 +53,7 @@
       const path = tab?.path ?? null
       view = createEditor(host!, currentOpts(tab?.content ?? '', path))
       mountedTabId = tab?.id ?? null
-      console.log('[tab] CREATION effect set mountedTabId =', mountedTabId)
+      debugLog('[tab] CREATION effect set mountedTabId =', mountedTabId)
       // Only mark the language as configured when the sync seed was the final
       // answer (markdown / plaintext / untitled). For paths that need the
       // async loader (.bat, .py, .rs, …), leave configuredLangPath undefined
@@ -66,7 +67,7 @@
       // Restore scroll for the tab that just mounted.
       if (mountedTabId) {
         const savedLine = scrollLineCache.get(mountedTabId) ?? 0
-        console.log('[scroll] RESTORE-after-create for', mountedTabId, 'savedLine=', savedLine)
+        debugLog('[scroll] RESTORE-after-create for', mountedTabId, 'savedLine=', savedLine)
         if (savedLine > 0) {
           requestAnimationFrame(() => {
             if (!view) return
@@ -76,14 +77,14 @@
               view.dispatch({
                 effects: EditorView.scrollIntoView(line.from, { y: 'start' }),
               })
-              console.log('[scroll] RESTORE-after-create applied line=', clamped)
+              debugLog('[scroll] RESTORE-after-create applied line=', clamped)
             }
           })
         }
       }
     })
     return () => {
-      console.log('[tab] CLEANUP — view destroyed')
+      debugLog('[tab] CLEANUP — view destroyed')
       viewReady = false
       if (view && mountedTabId) {
         // Save scroll position before the view is destroyed so the next
@@ -93,7 +94,7 @@
         if (pos != null) {
           const line = view.state.doc.lineAt(pos).number
           scrollLineCache.set(mountedTabId, line)
-          console.log('[scroll] SAVED in cleanup', mountedTabId, 'line=', line)
+          debugLog('[scroll] SAVED in cleanup', mountedTabId, 'line=', line)
         }
         stateByTab.set(mountedTabId, view.state)
       }
@@ -117,19 +118,19 @@
     const tabContent = tab.content
     const _pending = tab.pendingScrollLine
     const _pendingFocus = tab.pendingFocus
-    console.log('[tab] check tabId:', tabId, 'mounted:', mountedTabId, 'equal:', tabId === mountedTabId)
+    debugLog('[tab] check tabId:', tabId, 'mounted:', mountedTabId, 'equal:', tabId === mountedTabId)
     if (!viewReady || !view) return
     if (tabId === mountedTabId) {
-      console.log('[tab] SAME-TAB path — save/restore SKIPPED')
+      debugLog('[tab] SAME-TAB path — save/restore SKIPPED')
       syncFromStoreIfDiverged(tab)
       consumePendingScroll()
       consumePendingFocus()
       return
     }
 
-    console.log('[tab] DIFFERENT tab — save/restore WILL RUN')
+    debugLog('[tab] DIFFERENT tab — save/restore WILL RUN')
 
-    console.log('[tab] saving state for', mountedTabId, 'loading', tabId)
+    debugLog('[tab] saving state for', mountedTabId, 'loading', tabId)
     // ----- Switching away from the old tab -----
     if (mountedTabId) {
       // Save the old tab's top-visible line number before the document
@@ -139,7 +140,7 @@
       if (pos != null) {
         const line = view.state.doc.lineAt(pos).number
         scrollLineCache.set(mountedTabId, line)
-        console.log('[scroll] SAVED', mountedTabId, 'topLine=', line, 'scrollTop=', view.scrollDOM.scrollTop)
+        debugLog('[scroll] SAVED', mountedTabId, 'topLine=', line, 'scrollTop=', view.scrollDOM.scrollTop)
       }
       stateByTab.set(mountedTabId, view.state)
     }
@@ -167,7 +168,7 @@
     // ----- Restore scroll position (top-visible line) -----
     if (!hadPendingScroll) {
       const savedLine = scrollLineCache.get(tabId) ?? 0
-      console.log('[scroll] RESTORE target=', tabId, 'savedLine=', savedLine, 'lines=', view.state.doc.lines)
+      debugLog('[scroll] RESTORE target=', tabId, 'savedLine=', savedLine, 'lines=', view.state.doc.lines)
       if (savedLine > 0) {
         const clamped = Math.min(savedLine, view.state.doc.lines)
         if (clamped > 0) {
@@ -182,7 +183,7 @@
           })
 
           // Verify — log what actually happened
-          console.log('[scroll] AFTER dispatch scrollTop=', view.scrollDOM.scrollTop)
+          debugLog('[scroll] AFTER dispatch scrollTop=', view.scrollDOM.scrollTop)
 
           // Brute-force backup: try scrollIntoView again at multiple event-loop
           // depths to catch any deferred CM scroll logic that might override.
@@ -195,7 +196,7 @@
             if (!coords) return
             const rect = view.scrollDOM.getBoundingClientRect()
             const diff = coords.top - rect.top
-            console.log('[scroll] retry depth=', depth, 'diff=', diff, 'scrollTop=', view.scrollDOM.scrollTop)
+            debugLog('[scroll] retry depth=', depth, 'diff=', diff, 'scrollTop=', view.scrollDOM.scrollTop)
             if (Math.abs(diff) > 3) {
               view.scrollDOM.scrollBy(0, diff)
               requestAnimationFrame(() => retry(depth + 1))
@@ -305,6 +306,52 @@
     const next = Math.max(10, Math.min(24, cur + (e.deltaY < 0 ? 1 : -1)))
     if (next !== cur) settingsState.values.typography.editorFontSize = next
   }
+
+  async function onPaste(e: ClipboardEvent) {
+    if (!view) return
+    // Check for image data in the clipboard event. If found, handle it and
+    // prevent the default paste (which would insert garbage text for binary
+    // image data).
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (!file) return
+        const { handleImagePaste } = await import('$lib/utils/imagePaste')
+        await handleImagePaste(view, file)
+        return
+      }
+    }
+  }
+
+  // Listen for image drops from App.svelte's drag-drop handler.
+  $effect(() => {
+    if (!viewReady || !view) return
+    const handler = async (e: Event) => {
+      const ce = e as CustomEvent<{ path: string }>
+      const { handleImageDrop } = await import('$lib/utils/imagePaste')
+      await handleImageDrop(ce.detail.path, view!)
+    }
+    window.addEventListener('slate-drop-image', handler)
+    return () => window.removeEventListener('slate-drop-image', handler)
+  })
+
+  // Listen for replace-all events from SearchPanel. When replace-all modifies
+  // the active tab's content in the store, the editor view needs to sync from
+  // the store to reflect the changes immediately.
+  $effect(() => {
+    if (!viewReady || !view) return
+    const handler = () => {
+      const tab = tabsState.activeTab
+      if (!tab) return
+      syncFromStoreIfDiverged(tab)
+    }
+    window.addEventListener('slate-replace-all', handler)
+    return () => window.removeEventListener('slate-replace-all', handler)
+  })
 
   // Custom context menu. The native WebView2 / Chromium menu (Emoji, Inspect)
   // looks foreign next to the rest of the app chrome — replace it with a
@@ -469,6 +516,7 @@
   class="h-full w-full"
   onwheel={onWheel}
   oncontextmenu={onContextMenu}
+  onpaste={onPaste}
 ></div>
 
 {#if ctxMenu}

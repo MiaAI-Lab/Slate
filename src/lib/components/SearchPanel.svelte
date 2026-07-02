@@ -224,9 +224,19 @@
 
     const re = new RegExp(escapeRegex(q), searchPanel.caseSensitive ? 'g' : 'gi')
     let replaced = 0
+    let activeModified = false
+    const activeId = tabsState.activeId
     for (const tab of targetTabs()) {
       const next = tab.content.replace(re, () => { replaced++; return replacement })
-      if (next !== tab.content) tabsState.updateContent(tab.id, next)
+      if (next !== tab.content) {
+        tabsState.updateContent(tab.id, next)
+        if (tab.id === activeId) activeModified = true
+      }
+    }
+    // If the active tab was modified, notify the editor to sync from store
+    // so the CodeMirror view reflects the replacements immediately.
+    if (activeModified) {
+      window.dispatchEvent(new CustomEvent('slate-replace-all'))
     }
     toast.success(`Replaced ${replaced} ${replaced === 1 ? 'match' : 'matches'}`)
   }

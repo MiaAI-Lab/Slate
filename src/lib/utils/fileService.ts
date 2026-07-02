@@ -8,6 +8,7 @@ import { toast } from '$lib/state/toast.svelte'
 import { runDraftSweep } from '$lib/state/session.svelte'
 import { formatTables } from '$lib/editor/tableExtension'
 import type { Tab } from '../../types'
+import { mtimeDelete } from '$lib/state/mtimeCache.svelte'
 
 const MD_EXT = ['md', 'markdown', 'mdx']
 const TEXT_EXT = ['txt', 'log', 'json', 'yaml', 'yml', 'toml', 'csv', 'tsv', 'ini', 'cfg', 'env', 'sh', 'bat', 'ps1', 'js', 'ts', 'jsx', 'tsx', 'svelte', 'css', 'scss', 'html', 'xml', 'rs', 'py', 'go', 'java', 'c', 'h', 'cpp', 'hpp', 'rb', 'php', 'lua', 'sql']
@@ -76,6 +77,8 @@ export async function openAndFocus() {
   const id = tabsState.newTab()
   tabsState.loadContent(id, result.content, result.path, result.title)
   settingsState.addRecent(result.path)
+  const isNet = await invoke<boolean>('get_path_info', { path: result.path })
+  tabsState.setNetworkPath(id, isNet)
   invoke('watch_file', { path: result.path, content: result.content }).catch(() => {})
 }
 
@@ -90,6 +93,8 @@ export async function openPathInTab(path: string) {
     const id = tabsState.newTab()
     tabsState.loadContent(id, r.content, r.path, r.title)
     settingsState.addRecent(r.path)
+    const isNet = await invoke<boolean>('get_path_info', { path: r.path })
+    tabsState.setNetworkPath(id, isNet)
     invoke('watch_file', { path: r.path, content: r.content }).catch(() => {})
     return id
   } catch (e) {
@@ -117,7 +122,6 @@ export async function saveActive(tab: Tab): Promise<boolean> {
     }
     tabsState.setDirty(tab.id, false)
     tabsState.setExternallyChanged(tab.id, false)
-    invoke('record_save', { path: tab.path, content: out }).catch(() => {})
     // Eagerly re-write the draft as clean (drops stored content, flips dirty
     // flag) so a crash within the next sweep window doesn't restore stale
     // unsaved-changes state.
@@ -148,12 +152,14 @@ export async function saveActiveAs(tab: Tab): Promise<boolean> {
     // Stop watching old path, start watching new one.
     if (tab.path) {
       invoke('unwatch_file', { path: tab.path }).catch(() => {})
+      mtimeDelete(tab.path)
     }
     tabsState.setPath(tab.id, result.path, result.title)
     tabsState.setExternallyChanged(tab.id, false)
     settingsState.addRecent(result.path)
+    const isNet = await invoke<boolean>('get_path_info', { path: result.path })
+    tabsState.setNetworkPath(tab.id, isNet)
     invoke('watch_file', { path: result.path, content: finalContent }).catch(() => {})
-    invoke('record_save', { path: result.path, content: finalContent }).catch(() => {})
     // See note in saveActive: re-write the draft eagerly so the new path
     // is reflected on disk before the next sweep tick.
     runDraftSweep().catch(() => {})
@@ -189,6 +195,7 @@ export async function closeTabById(id: string): Promise<boolean> {
   }
   if (tab.path) {
     invoke('unwatch_file', { path: tab.path }).catch(() => {})
+    mtimeDelete(tab.path)
   }
   tabsState.closeTab(id)
   if (tabsState.tabs.length === 0) tabsState.newTab()
@@ -234,6 +241,8 @@ export async function closeAllTabsDiscardAll(): Promise<void> {
   // Pinned tabs are excluded — they survive "Close all without saving".
   const ids = targets.map(t => t.id)
   for (const id of ids) {
+    const tab = tabsState.tabs.find(t => t.id === id)
+    if (tab?.path) mtimeDelete(tab.path)
     tabsState.setDirty(id, false)
     tabsState.closeTab(id)
   }

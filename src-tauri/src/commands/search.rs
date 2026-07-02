@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::borrow::Cow;
 use walkdir::{DirEntry, WalkDir};
 
 const MAX_FILE_BYTES: u64 = 4 * 1024 * 1024;
@@ -99,7 +100,7 @@ pub async fn search_files(
         };
         let mut here: Vec<LineMatch> = vec![];
         for (i, line) in content.lines().enumerate() {
-            let hay = if case_sensitive { line.to_string() } else { line.to_lowercase() };
+            let hay = if case_sensitive { Cow::Borrowed(line) } else { Cow::Owned(line.to_lowercase()) };
             if hay.contains(&needle) {
                 here.push(LineMatch {
                     line: i + 1,
